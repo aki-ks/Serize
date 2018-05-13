@@ -38,15 +38,12 @@ class SerizeTest extends FunSuite with Matchers with PropertyChecks {
     val state = factory.f()
     pickler.pickle(a)(state)
 
-    val buffer = state.toByteBuffer
-    val array = new Array[Byte](buffer.remaining())
-    buffer.get(array)
-    array
+    state.toByteBuffer.toByteArray
   }
 
   /** Deserialize a bytearray into a value */
   def unpickle[A](array: Array[Byte])(implicit pickler: Pickler[A], factory: UnpickleStateFactory): A = {
-    val state = factory.f(ByteBuffer.wrap(array).order(ByteOrder.LITTLE_ENDIAN))
+    val state = factory.f(array.toByteBuffer)
     pickler.unpickle(state)
   }
 

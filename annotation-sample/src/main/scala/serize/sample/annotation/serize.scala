@@ -8,18 +8,11 @@ object Main extends App {
   import ExamplePicklers._
 
   val max = Person("Max", 21, Male)
-
-  val serialized: ByteBuffer = Pickle.intoBytes(max)
-
-  val array = new Array[Byte](serialized.remaining)
-  serialized.mark
-  serialized.get(array)
-  serialized.reset
-
-  val deserialized: Person = Unpickle[Person].fromBytes(serialized)
+  val serialized: Array[Byte] = Pickle.intoBytes(max).toByteArray
+  val deserialized: Person = Unpickle[Person].fromBytes(serialized.toByteBuffer)
 
   println(s"max: $max")
-  println(s"serialized: ${array.toList}")
+  println(s"serialized: ${serialized.toList}")
   println(s"deserialized: $deserialized")
 }
 

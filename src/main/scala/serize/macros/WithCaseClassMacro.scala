@@ -50,10 +50,10 @@ object WithCaseClassMacro {
     import c.universe._
     val tree = expr.tree
     tree match {
-      case q"""serize.F.apply(${Literal(Constant(id: Int))}).selectDynamic(${Literal(Constant(name: String))})""" =>
+      case q"""${_}.apply(${Literal(Constant(id: Int))}).selectDynamic(${Literal(Constant(name: String))})""" =>
         CaseField[c.universe.type](id, name, tree.pos, None)
 
-      case q"""serize.F.apply(${Literal(Constant(id: Int))}).updateDynamic[$typ](${Literal(Constant(name: String))})($default)""" =>
+      case q"""${_}.apply(${Literal(Constant(id: Int))}).updateDynamic[$typ](${Literal(Constant(name: String))})($default)""" =>
         CaseField[c.universe.type](id, name, tree.pos, Some(default))
 
       case _ => c.abort(expr.tree.pos, "Illegal field expression")

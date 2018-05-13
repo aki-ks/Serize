@@ -5,6 +5,16 @@ import java.nio.{ByteBuffer, ByteOrder}
 class DecoderSpeed(val buf: ByteBuffer) extends Decoder {
   val stringCodec: StringCodecBase = StringCodec
 
+  def skipFrame: Unit = {
+    val size = readInt
+    buf.position(buf.position() + size)
+  }
+
+  def readFrame[A](implicit pickler: Pickler[A], state: UnpickleState): A = {
+    val size = readInt
+    pickler.unpickle
+  }
+
   /**
     * Decodes a single byte
     *
@@ -177,10 +187,31 @@ class DecoderSpeed(val buf: ByteBuffer) extends Decoder {
   }
 }
 
-class EncoderSpeed(bufferProvider: BufferProvider = DefaultByteBufferProvider.provider) extends Encoder {
+class EncoderSpeed(bufferProvider: ByteBufferProvider = DefaultByteBufferProvider.provider) extends Encoder {
   val stringCodec: StringCodecBase = StringCodec
 
   @inline private def alloc(size: Int): ByteBuffer = bufferProvider.alloc(size)
+
+  def writeFrame[A](a: A)(implicit pickler: Pickler[A], state: PickleState): Encoder = {
+    val buffer = bufferProvider.alloc(4)
+    val sizeSlice = buffer.slice().order(buffer.order())
+    val sizePosition = buffer.position()
+
+    // skip 4 bytes for the size to be written
+    val dataPosition = sizePosition + 4
+    buffer.position(dataPosition)
+
+    // write the actual data
+    pickler.pickle(a)
+
+    // calculate the amount of bytes that have just been written
+    val size = bufferProvider.calculateWrittenBytes(buffer, dataPosition)
+
+    // write the size into the reserved 4 bytes
+    sizeSlice.putInt(size)
+
+    this
+  }
 
   /**
     * Encodes a single byte

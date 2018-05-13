@@ -5,6 +5,16 @@ import java.nio.ByteBuffer
 trait Decoder {
 
   /**
+    * Skip a value that is preceded by its size
+    */
+  def skipFrame: Unit
+
+  /**
+    * Decode a value that has its size prepended
+    */
+  def readFrame[A](implicit pickler: Pickler[A], state: UnpickleState): A
+
+  /**
     * Decodes a single byte
     *
     */
@@ -100,6 +110,11 @@ trait Decoder {
 }
 
 trait Encoder {
+
+  /**
+    * Encode a value and prepend the size of the encoded value.
+    */
+  def writeFrame[A](a: A)(implicit pickler: Pickler[A], state: PickleState): Encoder
 
   /**
     * Encodes a single byte

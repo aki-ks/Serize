@@ -6,6 +6,16 @@ import java.nio.{ByteBuffer, ByteOrder}
 class DecoderSize(val buf: ByteBuffer) extends Decoder {
   val stringCodec: StringCodecBase = StringCodec
 
+  def skipFrame: Unit = {
+    val size = readInt
+    buf.position(buf.position() + size)
+  }
+
+  def readFrame[A](implicit pickler: Pickler[A], state: UnpickleState): A = {
+    val size = readInt
+    pickler.unpickle
+  }
+
   /**
     * Decodes a single byte
     *
@@ -277,8 +287,85 @@ class DecoderSize(val buf: ByteBuffer) extends Decoder {
   }
 }
 
-class EncoderSize(bufferProvider: BufferProvider = DefaultByteBufferProvider.provider) extends Encoder {
+class EncoderSize(bufferProvider: ByteBufferProvider = DefaultByteBufferProvider.provider) extends Encoder {
   val stringCodec: StringCodecBase = StringCodec
+
+  def writeFrame[A](a: A)(implicit pickler: Pickler[A], state: PickleState): Encoder = {
+    val buffer = bufferProvider.alloc(5)
+    val sizePosition = buffer.position()
+    val sizeSlice = buffer.slice().order(buffer.order)
+
+    // skip 5 bytes for the size to be written
+    val dataPosition = sizePosition + 5
+    buffer.position(dataPosition)
+
+    // write the actual data
+    pickler.pickle(a)
+
+    // calculate the amount of bytes that have just been written
+    val size = bufferProvider.calculateWrittenBytes(buffer, dataPosition)
+
+    // write the size into the reserved 5 bytes
+    val sizeOfSize = writeIntAndGetSize(sizeSlice, size)
+
+    // if not all 5 reserved byte are required to write the size,
+    // the data will be shifted to the left to fill the gap.
+    val unusedSizeBytes = 5 - sizeOfSize
+    if(unusedSizeBytes > 0) {
+      val isInWriteMode = bufferProvider.currentBuf == buffer
+      val indexOfLastByte = if(isInWriteMode) buffer.position() else buffer.limit()
+      val byteCount = indexOfLastByte - dataPosition
+
+      if(buffer.hasArray) {
+        sizeSlice.put(buffer.array(), buffer.arrayOffset() + dataPosition, byteCount)
+      } else {
+        val dataSlice = buffer.slice.order(buffer.order())
+        dataSlice.position(dataPosition)
+
+        val data = new Array[Byte](byteCount)
+        buffer.get(data)
+
+        sizeSlice.put(data)
+      }
+
+      if(isInWriteMode)buffer.position(buffer.position() - unusedSizeBytes)
+      else buffer.limit(buffer.limit() - unusedSizeBytes)
+    }
+
+    this
+  }
+
+  /** Encode an int to a custom buffer and return the encoded size */
+  private def writeIntAndGetSize(buffer: ByteBuffer, i: Int): Int = {
+    // check for a short number
+    if (i >= 0 && i < 128) {
+      buffer.put(i.toByte)
+      1
+    } else {
+      if (i > -268435456 && i < 268435456) {
+        val mask = i >>> 31 << 4
+        val a = Math.abs(i)
+        if (a < 4096) {
+          buffer.put((mask | 0x80 | (a >> 8)).toByte).put((a & 0xFF).toByte)
+          2
+        } else if (a < 1048576) {
+          buffer.put((mask | 0xA0 | (a >> 16)).toByte).put(((a >> 8) & 0xFF).toByte).put((a & 0xFF).toByte)
+          3
+        } else {
+          buffer
+            .put((mask | 0xC0 | (a >> 24)).toByte)
+            .put(((a >> 16) & 0xFF).toByte)
+            .put(((a >> 8) & 0xFF).toByte)
+            .put((a & 0xFF).toByte)
+          4
+        }
+      } else {
+        buffer.put(0xE0.toByte).putInt(i)
+        5
+      }
+    }
+  }
+
 
   @inline private def alloc(size: Int): ByteBuffer = bufferProvider.alloc(size)
 

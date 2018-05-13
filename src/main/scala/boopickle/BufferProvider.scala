@@ -31,8 +31,8 @@ trait BufferProvider {
 abstract class ByteBufferProvider extends BufferProvider {
   import ByteBufferProvider._
   protected val pool                      = BufferPool
-  protected var buffers: List[ByteBuffer] = Nil
-  protected var currentBuf: ByteBuffer    = allocate(initSize)
+  var buffers: List[ByteBuffer] = Nil
+  var currentBuf: ByteBuffer    = allocate(initSize)
 
   protected def allocate(size: Int): ByteBuffer
 
@@ -68,6 +68,23 @@ abstract class ByteBufferProvider extends BufferProvider {
     currentBuf.flip()
     (currentBuf :: buffers).reverse.toVector
   }
+
+  def calculateWrittenBytes(startBuffer: ByteBuffer, startPosition: Int): Int = {
+    if(currentBuf == startBuffer)startBuffer.position() - startPosition
+    else {
+      var writtenBytes = currentBuf.position()
+
+      for(buffer ← buffers) {
+        writtenBytes += buffer.limit()
+
+        if(buffer == startBuffer)
+          return writtenBytes - startPosition
+      }
+
+      throw new RuntimeException("A ByteBuffer magically disappeared from the BufferProvider")
+    }
+  }
+
 }
 
 object ByteBufferProvider {

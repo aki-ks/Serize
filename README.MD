@@ -102,6 +102,12 @@ val deserialized: Person = Unpickle[Person].fromBytes(bytes)
 
 # FAQ
 
+**"Can I use serize with akka"?**
+
+Yes, serize was made for usage with [akka](https://akka.io/):
+
+https://github.com/aki-ks/Serize-Akka
+
 **"When using the @serize annotation the compiler cannot find implicit Picklers"**
 
 You have probably not imported your singleton that contains all implicit picklers.

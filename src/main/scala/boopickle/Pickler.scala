@@ -526,7 +526,7 @@ object PickleState {
     *
     * @return
     */
-  implicit def pickleStateSpeed: PickleState = new PickleState(new EncoderSize, true, true)
+  implicit def pickleStateSize: PickleState = new PickleState(new EncoderSize, true, true)
 }
 
 /**
@@ -593,7 +593,7 @@ object UnpickleState {
     *
     * @return
     */
-  implicit def unpickleStateSpeed: ByteBuffer => UnpickleState = bytes => new UnpickleState(new DecoderSize(bytes), true, true)
+  implicit def unpickleStateSize: ByteBuffer => UnpickleState = bytes => new UnpickleState(new DecoderSize(bytes), true, true)
 
   def apply(bytes: ByteBuffer) = new UnpickleState(new DecoderSize(bytes))
 

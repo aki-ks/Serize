@@ -74,16 +74,13 @@ val container = Container
 
 When you add a new field and old serialized data should not become invalid, you must assign a default value.
 
-* when working with annotations:
+* Defining default values in class definition:
 ``` Scala
-@serize("Person")
-case class Person(@id(0)name: String, @id(1)age: Int, @id(2)gender: Gender, @id(3)email: Option[String] = None)
+case class Person(name: String, age: Int, gender: Gender, email: Option[String] = None) extends SerizeMessage
 ```
 
-* when defining it in the container:
+* Defining default values in the `Container`:
 ``` Scala
-case class Person(name: String, age: Int, gender: Gender, email: Option[String]) extends SerizeMessage
-
 val container = Container
   .withCaseClass[Person]("Person")(F(0).name, F(1).age, F(2).gender, F(3).email = None)
 ```

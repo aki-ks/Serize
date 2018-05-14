@@ -1,4 +1,5 @@
 # Serize
+[![](https://jitpack.io/v/aki-ks/serize.svg)](https://jitpack.io/#aki-ks/serize)
 
 Serize is a fork of [boopickle](https://github.com/suzaku-io/boopickle) that provides an advanced macro for pickling case classes.
 Data should still be able to be unpickled after the case class/case object was changed:
@@ -12,7 +13,12 @@ Data should still be able to be unpickled after the case class/case object was c
 
 # Usage
 Add the jitpack resolver and this repository as dependency to your project:
-https://jitpack.io/#aki-ks/Serize
+https://jitpack.io/#aki-ks/serize
+
+If you want to use the @serize macro annotation, you must add the macroparadise compiler plugin:
+``` sbt
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+```
 
 First of all you must import all serize classes and create an object that inherits all default implicit picklers.
 ``` Scala

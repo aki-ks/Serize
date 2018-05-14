@@ -45,8 +45,8 @@ class Container private(
   def withCaseClass[C <: SerizeMessage](implicit pickler: CasePickler[C]) = withPickler(pickler)
 
   import scala.language.experimental.macros
-  def withCaseObject[M](m: M, name: String) = macro WithCaseObjectMacro.impl[M]
-  def withCaseClass[C](name: String)(fields: F*) = macro WithCaseClassMacro.impl[C]
+  def withCaseObject[M](m: M, name: String): Container = macro WithCaseObjectMacro.impl[M]
+  def withCaseClass[C](name: String)(fields: F*): Container = macro WithCaseClassMacro.impl[C]
 
   def pickle[A](obj: A)(implicit state: PickleState): Unit = {
     classToId get obj.getClass match {

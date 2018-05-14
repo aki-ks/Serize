@@ -8,13 +8,14 @@ object WithCaseClassMacro {
     import c.universe._
 
     val classType = weakTypeOf[C]
+    val classSymbol = classType.typeSymbol.asClass
     val Apply(Apply(TypeApply(_, List(classNameTree)), _), _) = c.macroApplication
 
     val parameters = {
-      val paramLists = classType.typeSymbol.asClass.primaryConstructor.asMethod.paramLists
+      val paramLists = classSymbol.primaryConstructor.asMethod.paramLists
       if (paramLists.length > 1)
         c.abort(c.enclosingPosition, "Case classes with multiple parameter-lists are not supported")
-      paramLists.head
+      paramLists.head map (_.asTerm)
     }
 
     val caseFields = fields.map(f => parseFieldExpression(c)(f))
@@ -28,20 +29,33 @@ object WithCaseClassMacro {
       case _ => c.abort(name.tree.pos, "Classname must be a string literal")
     }
 
-    val fieldInfos = for(parameter ← parameters) yield {
+    val fieldInfos = for((parameter, index) ← parameters.zipWithIndex) yield {
       val fieldName = parameter.name.decodedName.toString
       val fieldType = q"${parameter.typeSignatureIn(classType)}"
       val caseField = caseFields.find(_.name == fieldName).getOrElse {
         c.abort(c.enclosingPosition, s"No metadata for field $fieldName provided")
       }
 
-      new FieldInfo[c.universe.type](caseField.id, fieldType, parameter.name.toTermName, caseField.default, caseField.pos)
+      val defaultValue = caseField.default orElse {
+        if(parameter.isParamWithDefault) Some(invokeDefaultValueGetter(c)(classSymbol, index))
+        else None
+      }
+
+      new FieldInfo[c.universe.type](caseField.id, fieldType, parameter.name.toTermName, defaultValue, caseField.pos)
     }
 
     val classInfo = new CaseClassInfo[c.universe.type](className, classNameTree, fieldInfos)
 
     val pickler = PicklerGenerator.caseClassPickler(c)(classInfo)
     c.Expr[Container](q"""${c.prefix}.withCaseClass[${classNameTree}]($pickler)""")
+  }
+
+  def invokeDefaultValueGetter(c: blackbox.Context)(clazz: c.universe.ClassSymbol, paramIndex: Int): c.universe.Tree = {
+    import c.universe._
+    val getterName = TermName("$lessinit$greater$default$" + (paramIndex + 1))
+    val moduleSymbol = clazz.companion
+
+    q"""$moduleSymbol.$getterName"""
   }
 
   case class CaseField[U <: Universe](id: Int, name: String, pos: U#Position, default: Option[U#Tree])

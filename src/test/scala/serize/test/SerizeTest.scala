@@ -13,7 +13,7 @@ object AnnotatedPickler extends Default {
     .withCaseClass[CaseClass0]
     .withCaseClass[CaseClass1]
     .withCaseClass[CaseClass2]
-    .withCaseClass[CaseClass2WithDefaults]
+    .withCaseClass[CaseClass2WithAnnotationDefaults]
 }
 
 object ContainerPickler extends Default {
@@ -22,11 +22,14 @@ object ContainerPickler extends Default {
     .withCaseClass[CaseClass0]("CaseClass0")()
     .withCaseClass[CaseClass1]("CaseClass1")(F(0).a)
     .withCaseClass[CaseClass2]("CaseClass2")(F(-93).a, F(954).b)
-    .withCaseClass[CaseClass2WithDefaults]("CaseClass2WithDefaults")(F(-93).a = 10, F(954).b = 20)
+    .withCaseClass[CaseClass2WithAnnotationDefaults]("CaseClass2WithAnnotationDefaults")(F(-93).a, F(954).b)
+    .withCaseClass[CaseClass2WithContainerDefaults]("CaseClass2WithContainerDefaults")(F(-93).a = 10, F(954).b = 20)
 }
 
 class SerizeTest extends FunSuite with Matchers with PropertyChecks {
+
   case class PickleStateFactory(f: () => PickleState)
+
   case class UnpickleStateFactory(f: ByteBuffer => UnpickleState)
 
   val containers = AnnotatedPickler :: ContainerPickler :: Nil
@@ -53,7 +56,7 @@ class SerizeTest extends FunSuite with Matchers with PropertyChecks {
   }
 
   def doTest[A](value: A)(getArray: PickleStateFactory => Array[Byte])(implicit pickler: Pickler[A]): Unit = {
-    for((picklerFactory, unpicklerFactory) ← picklerFactories zip unpicklerFactories) {
+    for ((picklerFactory, unpicklerFactory) ← picklerFactories zip unpicklerFactories) {
       implicit val _picklerFactory = picklerFactory
       implicit val _unpicklerFactory = unpicklerFactory
 
@@ -143,45 +146,120 @@ class SerizeTest extends FunSuite with Matchers with PropertyChecks {
     }
   }
 
-  test("Deserialize case class from default values") {
-    for {
-      container ← containers
-      (picklerFactory, unpicklerFactory) ← picklerFactories zip unpicklerFactories
-    } {
-      import container._
+  test("Deserialize case class with default values defined in the class declaration") {
+    for ((picklerFactory, unpicklerFactory) ← picklerFactories zip unpicklerFactories) {
+      import AnnotatedPickler._
       implicit val _picklerFactory = picklerFactory
       implicit val _unpicklerFactory = unpicklerFactory
 
-      unpickle[CaseClass2WithDefaults](
-        pickle("CaseClass2WithDefaults") ++ // id of class
+      unpickle[CaseClass2WithAnnotationDefaults](
+        pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
           pickle(0) // 0 fields
-      ) shouldEqual CaseClass2WithDefaults()
+      ) shouldEqual CaseClass2WithAnnotationDefaults()
 
       forAll { a: Int =>
-        unpickle[CaseClass2WithDefaults](
-          pickle("CaseClass2WithDefaults") ++ // id of class
+        unpickle[CaseClass2WithAnnotationDefaults](
+          pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
             pickle(1) ++ // 1 field
             pickleField(-93, a) // first field
-        ) shouldEqual CaseClass2WithDefaults(a = a)
+        ) shouldEqual CaseClass2WithAnnotationDefaults(a = a)
       }
 
       forAll { b: Int =>
-        unpickle[CaseClass2WithDefaults](
-          pickle("CaseClass2WithDefaults") ++ // id of class
+        unpickle[CaseClass2WithAnnotationDefaults](
+          pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
             pickle(1) ++ // 1 field
             pickleField(954, b) // second field
-        ) shouldEqual CaseClass2WithDefaults(b = b)
+        ) shouldEqual CaseClass2WithAnnotationDefaults(b = b)
       }
 
       forAll { (b: Int, any: Int) =>
-        unpickle[CaseClass2WithDefaults](
-          pickle("CaseClass2WithDefaults") ++ // id of class
+        unpickle[CaseClass2WithAnnotationDefaults](
+          pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
             pickle(1) ++ // 2 field
             pickleField(954, b) ++ // second field
             pickleField(487853, any) // non existent field
-        ) shouldEqual CaseClass2WithDefaults(b = b)
+        ) shouldEqual CaseClass2WithAnnotationDefaults(b = b)
       }
     }
   }
 
+  test("Deserialize case class with default values defined in a container") {
+    for ((picklerFactory, unpicklerFactory) ← picklerFactories zip unpicklerFactories) {
+      import ContainerPickler._
+      implicit val _picklerFactory = picklerFactory
+      implicit val _unpicklerFactory = unpicklerFactory
+
+      unpickle[CaseClass2WithContainerDefaults](
+        pickle("CaseClass2WithContainerDefaults") ++ // id of class
+          pickle(0) // 0 fields
+      ) shouldEqual CaseClass2WithContainerDefaults()
+
+      forAll { a: Int =>
+        unpickle[CaseClass2WithContainerDefaults](
+          pickle("CaseClass2WithContainerDefaults") ++ // id of class
+            pickle(1) ++ // 1 field
+            pickleField(-93, a) // first field
+        ) shouldEqual CaseClass2WithContainerDefaults(a = a)
+      }
+
+      forAll { b: Int =>
+        unpickle[CaseClass2WithContainerDefaults](
+          pickle("CaseClass2WithContainerDefaults") ++ // id of class
+            pickle(1) ++ // 1 field
+            pickleField(954, b) // second field
+        ) shouldEqual CaseClass2WithContainerDefaults(b = b)
+      }
+
+      forAll { (b: Int, any: Int) =>
+        unpickle[CaseClass2WithContainerDefaults](
+          pickle("CaseClass2WithContainerDefaults") ++ // id of class
+            pickle(1) ++ // 2 field
+            pickleField(954, b) ++ // second field
+            pickleField(487853, any) // non existent field
+        ) shouldEqual CaseClass2WithContainerDefaults(b = b)
+      }
+    }
+  }
+
+  /** The id of the class and its fields are defined in the container,
+    * but the default values are defined in the case class.
+    */
+  test("Deserialize case class defined in the container with default values defined in the class declaration") {
+    for ((picklerFactory, unpicklerFactory) ← picklerFactories zip unpicklerFactories) {
+      import ContainerPickler._
+      implicit val _picklerFactory = picklerFactory
+      implicit val _unpicklerFactory = unpicklerFactory
+
+      unpickle[CaseClass2WithAnnotationDefaults](
+        pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
+          pickle(0) // 0 fields
+      ) shouldEqual CaseClass2WithAnnotationDefaults()
+
+      forAll { a: Int =>
+        unpickle[CaseClass2WithAnnotationDefaults](
+          pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
+            pickle(1) ++ // 1 field
+            pickleField(-93, a) // first field
+        ) shouldEqual CaseClass2WithAnnotationDefaults(a = a)
+      }
+
+      forAll { b: Int =>
+        unpickle[CaseClass2WithAnnotationDefaults](
+          pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
+            pickle(1) ++ // 1 field
+            pickleField(954, b) // second field
+        ) shouldEqual CaseClass2WithAnnotationDefaults(b = b)
+      }
+
+      forAll { (b: Int, any: Int) =>
+        unpickle[CaseClass2WithAnnotationDefaults](
+          pickle("CaseClass2WithAnnotationDefaults") ++ // id of class
+            pickle(1) ++ // 2 field
+            pickleField(954, b) ++ // second field
+            pickleField(487853, any) // non existent field
+        ) shouldEqual CaseClass2WithAnnotationDefaults(b = b)
+      }
+    }
+  }
 }

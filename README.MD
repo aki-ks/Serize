@@ -103,7 +103,7 @@ val serialized: Array[Byte] = Pickle.intoBytes(value).toByteArray
 import ExamplePicklers._
 
 val bytes: Array[Byte] = ???
-val deserialized: Person = Unpickle[Person].fromBytes(bytes)
+val deserialized: Person = Unpickle[Person].fromBytes(bytes.toByteBuffer)
 ```
 
 # FAQ

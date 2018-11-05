@@ -1,6 +1,8 @@
 # Serize
 [![](https://jitpack.io/v/aki-ks/serize.svg)](https://jitpack.io/#aki-ks/serize)
 
+## This project was a small scala macro experiment and won't be developed further. I might rewrite it targeting the protobuf protocol in the future.
+
 Serize is a fork of [boopickle](https://github.com/suzaku-io/boopickle) that provides an advanced macro for pickling case classes.
 Data should still be able to be unpickled after the case class/case object was changed:
 
